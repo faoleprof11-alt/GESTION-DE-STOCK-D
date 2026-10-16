@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GESTION DE STOCK DEKA</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #eef3f9; color: #172b4d; }
+    header { background: #0755a5; color: white; padding: 22px; text-align: center; }
+    main { max-width: 1000px; margin: auto; padding: 18px; }
+    section { background: white; padding: 18px; border-radius: 10px; margin-bottom: 18px; }
+    h2 { color: #0755a5; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 12px; }
+    input, select, button { box-sizing: border-box; padding: 12px; width: 100%; margin: 5px 0; border: 1px solid #ccd5e0; border-radius: 6px; }
+    button { background: #0755a5; color: white; cursor: pointer; border: 0; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; background: white; }
+    th, td { border: 1px solid #d8e0ea; padding: 10px; text-align: left; }
+    th { background: #dceaff; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: 12px; }
+    .card { padding: 16px; background: #e2edff; border-radius: 8px; }
+    .delete { background: #b42318; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>GESTION DE STOCK DEKA</h1>
+  <p>Contrôle des entrées et sorties par produit</p>
+</header>
+<main>
+  <section>
+    <h2>Tableau de bord</h2>
+    <div class="cards">
+      <div class="card">Produits : <strong id="total">0</strong></div>
+      <div class="card">Entrées : <strong id="entrees">0</strong></div>
+      <div class="card">Sorties : <strong id="sorties">0</strong></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ajouter un produit</h2>
+    <form id="productForm">
+      <div class="grid">
+        <input id="code" placeholder="Code produit" required>
+        <input id="nom" placeholder="Nom du produit" required>
+        <input id="depot" placeholder="Nom du dépôt" required>
+        <input id="stock" type="number" min="0" step="0.01" placeholder="Stock initial" required>
+      </div>
+      <button>Enregistrer le produit</button>
+    </form>
+  </section>
+
+  <section>
+    <h2>Enregistrer une entrée ou une sortie</h2>
+    <form id="movementForm">
+      <div class="grid">
+        <select id="produit" required></select>
+        <select id="type">
+          <option value="Entrée">Entrée</option>
+          <option value="Sortie">Sortie</option>
+        </select>
+        <input id="quantite" type="number" min="0.01" step="0.01" placeholder="Quantité" required>
+        <input id="facture" placeholder="Numéro de facture">
+        <input id="client" placeholder="Client">
+        <input id="avance" placeholder="Avance (quantité)" type="number" min="0" step="0.01">
+        <input id="chauffeur" placeholder="Chauffeur">
+        <input id="plaque" placeholder="Plaque du véhicule">
+        <input id="fiche" placeholder="Numéro de fiche">
+      </div>
+      <button>Enregistrer le mouvement</button>
+    </form>
+  </section>
+
+  <section>
+    <h2>Stock par produit</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Code</th><th>Produit</th><th>Dépôt</th><th>Stock</th></tr></thead>
+        <tbody id="productRows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Historique complet</h2>
+    <p>Cette première version n'affiche aucun montant financier.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Type</th><th>Produit</th><th>Quantité</th><th>Facture</th><th>Client</th><th>Avance</th><th>Chauffeur</th><th>Plaque</th><th>Fiche</th></tr></thead>
+        <tbody id="historyRows"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let products = JSON.parse(localStorage.getItem('deka_products') || '[]');
+let history = JSON.parse(localStorage.getItem('deka_history') || '[]');
+
+function save() {
+  localStorage.setItem('deka_products', JSON.stringify(products));
+  localStorage.setItem('deka_history', JSON.stringify(history));
+  render();
+}
+function render() {
+  $('total').textContent = products.length;
+  $('entrees').textContent = history.filter(x => x.type === 'Entrée').length;
+  $('sorties').textContent = history.filter(x => x.type === 'Sortie').length;
+  $('produit').innerHTML = products.map(p =>
+    <option value="${p.id}">${p.code} - ${p.nom}</option>).join('');
+  $('productRows').innerHTML = products.map(p =>
+    <tr><td>${p.code}</td><td>${p.nom}</td><td>${p.depot}</td><td>${p.stock}</td></tr>).join('');
+  $('historyRows').innerHTML = history.slice().reverse().map(x =>
+    <tr><td>${x.date}</td><td>${x.type}</td><td>${x.nom}</td><td>${x.quantite}</td><td>${x.facture}</td><td>${x.client}</td><td>${x.avance}</td><td>${x.chauffeur}</td><td>${x.plaque}</td><td>${x.fiche}</td></tr>).join('');
+}
+$('productForm').addEventListener('submit', e => {
+  e.preventDefault();
+  if (products.some(p => p.code === $('code').value.trim())) return alert('Ce code existe déjà.');
+  products.push({id: crypto.randomUUID(), code: $('code').value.trim(), nom: $('nom').value.trim(), depot: $('depot').value.trim(), stock: Number($('stock').value)});
+  e.target.reset(); save();
+});
+$('movementForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const p = products.find(p => p.id === $('produit').value);
+  if (!p) return alert('Ajoutez d’abord un produit.');
+  const q = Number($('quantite').value);
+  const avance = Number($('avance').value || 0);
+  if ($('type').value === 'Sortie' && q > p.stock) return alert('Stock insuffisant.');
+  if ($('type').value === 'Sortie' && avance > q) return alert('L’avance ne peut pas dépasser la quantité sortie.');
+  p.stock += $('type').value === 'Entrée' ? q : -q;
+  history.push({date: new Date().toLocaleString('fr-FR'), type: $('type').value, nom: p.nom, quantite: q, facture: $('facture').value, client: $('client').value, avance, chauffeur: $('chauffeur').value, plaque: $('plaque').value, fiche: $('fiche').value});
+  e.target.reset(); save();
+});
+render();
+</script>
+</body>
+</html>
